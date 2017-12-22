@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BlobStore", "BlobStore\BlobStore.fsproj", "{F3FBBEFC-C40D-4D41-8F2C-A8F18806C05C}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BlobStore.Tests", "BlobStore.Tests\BlobStore.Tests.fsproj", "{F96C9529-61F6-49A3-8045-1EE270B6EA6B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F3FBBEFC-C40D-4D41-8F2C-A8F18806C05C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3FBBEFC-C40D-4D41-8F2C-A8F18806C05C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3FBBEFC-C40D-4D41-8F2C-A8F18806C05C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3FBBEFC-C40D-4D41-8F2C-A8F18806C05C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F96C9529-61F6-49A3-8045-1EE270B6EA6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F96C9529-61F6-49A3-8045-1EE270B6EA6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F96C9529-61F6-49A3-8045-1EE270B6EA6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F96C9529-61F6-49A3-8045-1EE270B6EA6B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
