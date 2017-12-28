@@ -35,6 +35,7 @@ module Entity =
     type Update<'Input,'Snapshot,'Event> = 'Input -> 'Snapshot option -> ('Snapshot*'Event) option
 
     let update
+        (retryDelay:int->int)
         (snapshotName:'Key->Blob.Name)
         (snapshotFromBytes:byte[]->Entity<'Key,'Snapshot,'Event>)
         (snapshotToBytes:Entity<'Key,'Snapshot,'Event>->byte[])
@@ -51,7 +52,7 @@ module Entity =
             entity
 
         fun (key:'Key) (input:'Input) ->
-            Blob.update container (snapshotFromBytes, snapshotToBytes) (snapshotName key) <| function
+            Blob.update retryDelay container (snapshotFromBytes, snapshotToBytes) (snapshotName key) <| function
                 | Some entity ->
                     entity
                     |> projectIfMissing

@@ -67,6 +67,7 @@
     <None Include="paket.references" />
     <Compile Include="Blob.fs" />
     <Compile Include="Entity.fs" />
+    <Compile Include="Retry.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

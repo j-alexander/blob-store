@@ -27,7 +27,7 @@ type BlobTests() =
     member x.TestCreateIfMissing() =
         let name = name()
         let data = bytes()
-            
+
         let uri = Store.Blob.createIfMissing container name (lazy(data))
         match uri with
         | None ->
@@ -65,7 +65,7 @@ type BlobTests() =
     [<Test>]
     member x.TestUpdateBytes() =
         let name = name()
-        let update = Store.Blob.update container (id,id) name
+        let update = Store.Blob.update Store.Retry.immediately container (id,id) name
         let increment : Store.Blob.Update<byte[]> =
             function
             | None -> "1"

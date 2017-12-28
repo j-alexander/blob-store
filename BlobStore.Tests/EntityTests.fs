@@ -23,7 +23,8 @@ type ConcurrentMap<'Key,'Value> when 'Key : comparison () =
                 }
             loop Map.empty)
     member x.Set(key,value) = mailbox.Post(Choice2Of2(key,value))
-    member x.Get() = mailbox.PostAndAsyncReply(Choice1Of2)
+    member x.Get() = mailbox.PostAndReply(Choice1Of2)
+    member x.GetAsync() = mailbox.PostAndAsyncReply(Choice1Of2)
 
 type Converter =
     static member ToJson(x:'T) = JsonConvert.SerializeObject(x :> obj)
@@ -36,9 +37,10 @@ type StringEntity = Store.Entity<string,int64,string>
 [<TestFixture>]
 type EntityTests() =
 
-    let container =
+    let client = 
         let account = CloudStorageAccount.Parse("UseDevelopmentStorage=true;")
-        let client = account.CreateCloudBlobClient()
+        account.CreateCloudBlobClient()
+    let container =
         let container = client.GetContainerReference(Environment.TickCount.ToString())
         container.CreateIfNotExists() |> ignore
         container
@@ -49,9 +51,9 @@ type EntityTests() =
         Guid.NewGuid().ToString("n")
         |> Encoding.UTF8.GetBytes
 
-
     [<Test>]
     member x.TestUpdate() =
+        let retryInterval = Store.Retry.centisecondsPerRetry
         let snapshotName key =
             sprintf "%s/snapshot" key
         let snapshotFromBytes : byte[]->StringEntity = Converter.FromJsonBytes
@@ -59,6 +61,7 @@ type EntityTests() =
         let eventName key : Store.Version->string = 
             Store.VersionFormat.Hex.oldestFirst
             >> sprintf "%s/event/%s" key 
+        let eventFromBytes : byte[]->string = Encoding.UTF8.GetString
         let eventToBytes : string->byte[] = Encoding.UTF8.GetBytes
         let eventProjections = new ConcurrentMap<string*int64,Uri>()
         let eventProjection key version uri =
@@ -69,9 +72,10 @@ type EntityTests() =
                 function
                 | Some count -> Some(count+1L, input)
                 | None -> Some(0L, input)
-                
+
         let updateEntity =
             Store.Entity.update
+                retryInterval
                 snapshotName
                 snapshotFromBytes
                 snapshotToBytes
@@ -80,23 +84,44 @@ type EntityTests() =
                 eventProjection
                 container
                 update
-        
+
         let key = name()
         let values =
             [ for _ in 1..100 -> name() ]
 
-//        let updates =
-//            [ for value in values ->
-//                async {
-//                    return updateEntity key value
-//                }
-//            ]
-        for value in values do
-            updateEntity key value
-            |> ignore
+        let results =
+            [ for value in values ->
+                async {
+                    return updateEntity key value
+                }
+            ]
+            |> Async.Parallel
+            |> Async.RunSynchronously
+            
+        let events =
+            eventProjections.Get()
 
-//        let results =
-//            Async.Parallel updates
-//            |> Async.RunSynchronously
-
-        ()
+        for result in results do
+            match result with
+            | None ->
+                Assert.Fail("All inputs should produce an update.")
+            | Some { Store.Entity.Key=key
+                     Store.Entity.Version=version
+                     Store.Entity.Snapshot=snapshot
+                     Store.Entity.Last=last } ->
+                match Map.tryFind (key,version) events with
+                | None -> ()
+                | Some x ->
+                    let event = 
+                        let blob = client.GetBlobReferenceFromServer(x)
+                        use stream = new MemoryStream()
+                        blob.DownloadToStream(stream)
+                        stream.ToArray()
+                        |> eventFromBytes
+                    Assert.AreEqual(last, event)
+        Assert.AreEqual(
+            Set [0..99],
+            results
+            |> Seq.choose id
+            |> Seq.map Store.Entity.version
+            |> Set.ofSeq)

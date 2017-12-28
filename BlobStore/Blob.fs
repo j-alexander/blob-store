@@ -1,7 +1,9 @@
 ﻿namespace Store
 
+open System
 open System.IO
 open System.Net
+open System.Threading
 open Microsoft.WindowsAzure.Storage
 open Microsoft.WindowsAzure.Storage.Blob
 
@@ -63,18 +65,20 @@ module Blob =
             with
             | StatusCodeIn [ HttpStatusCode.Conflict
                              HttpStatusCode.PreconditionFailed ] code -> None
-        
 
-    let update (container:CloudBlobContainer) (fromBytes, (|Bytes|)) (name:Name) (update:Update<'T>) =
+
+    let update (retry) (container:CloudBlobContainer) (fromBytes, (|Bytes|)) (name:Name) (update:Update<'T>) =
         let reference = container.GetBlockBlobReference(name)
         let read _ =
-            try let data, etag =
-                    use memory = new MemoryStream()
-                    reference.DownloadToStream(memory)
-                    memory.ToArray(),
-                    reference.Properties.ETag
-                Some { ETag = etag |> Some
-                       Data = data |> fromBytes }
+            try if reference.Exists() then
+                    let data, etag =
+                        use memory = new MemoryStream()
+                        reference.DownloadToStream(memory)
+                        memory.ToArray(),
+                        reference.Properties.ETag
+                    Some { ETag = etag |> Some
+                           Data = data |> fromBytes }
+                else None
             with
             | StatusCodeIn [ HttpStatusCode.BadRequest
                              HttpStatusCode.NotFound
@@ -91,20 +95,20 @@ module Blob =
             | StatusCodeIn [ HttpStatusCode.Conflict
                              HttpStatusCode.PreconditionFailed ] code -> None
 
-        let rec apply() =
-            match read() with
+        let rec apply i =
+            match read(retry i) with
             | None ->
                 match update None with
                 | None -> None
                 | Some data ->
                     match write { Data=data; ETag=None } with
-                    | None -> apply()
+                    | None -> apply(i+1)
                     | Some result -> Some result
             | Some { Data=data; ETag=etag } ->
                 match update (Some data) with
                 | None -> None
                 | Some data ->
                     match write { Data=data; ETag=etag } with
-                    | None -> apply()
+                    | None -> apply(i+1)
                     | Some result -> Some result
-        apply()
+        apply 0
