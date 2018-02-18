@@ -67,7 +67,7 @@ module Blob =
                              HttpStatusCode.PreconditionFailed ] code -> None
 
 
-    let update (retry) (container:CloudBlobContainer) (fromBytes, (|Bytes|)) (name:Name) (update:Update<'T>) =
+    let update (retry:int->int) (container:CloudBlobContainer) (fromBytes, (|Bytes|)) (name:Name) (update:Update<'T>) =
         let reference = container.GetBlockBlobReference(name)
         let read _ =
             try if reference.Exists() then
@@ -96,8 +96,10 @@ module Blob =
                              HttpStatusCode.PreconditionFailed ] code -> None
 
         let rec apply i =
+          let wait = retry i
+          if wait > 0 then Thread.Sleep(wait)
           let before, etag =
-            match read(retry i) with
+            match read() with
             | None -> None, None
             | Some { Data=data; ETag=etag } -> Some data, etag
           match update before with
