@@ -26,3 +26,6 @@ module Retry =
     let secondsPerRetry i = Random.betweenZeroAnd(i*1000)
 
     let powerOf2Milliseconds i = Random.betweenZeroAnd(1 <<< i)
+    let powerOf2Centiseconds i = Random.betweenZeroAnd((1 <<< i)*10)
+    let powerOf2Deciseconds i = Random.betweenZeroAnd((1 <<< i)*100)
+    let powerOf2SecondsPerRetry i = Random.betweenZeroAnd((1 <<< i)*1000)

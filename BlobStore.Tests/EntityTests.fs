@@ -53,7 +53,7 @@ type EntityTests() =
 
     [<Test>]
     member x.TestUpdate() =
-        let retryInterval = Store.Retry.powerOf2Milliseconds
+        let retryInterval = Store.Retry.powerOf2Centiseconds
         let snapshotName key =
             sprintf "%s/snapshot" key
         let snapshotFromBytes : byte[]->StringEntity = Converter.FromJsonBytes
