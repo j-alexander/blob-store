@@ -52,33 +52,26 @@ module Entity =
             entity
 
         fun (key:'Key) (input:'Input) ->
-            Blob.update retryDelay container (snapshotFromBytes, snapshotToBytes) (snapshotName key) <| function
-                | Some entity ->
-                    entity
-                    |> projectIfMissing
-                    |> snapshot
-                    |> Some
-                    |> update input
-                    |>
-                    function
-                    | None -> None
-                    | Some (snapshot, event) ->
-                        { entity with
-                            Version=1L+entity.Version
-                            Snapshot=snapshot
-                            Last=event }
+            Blob.update retryDelay container (snapshotFromBytes, snapshotToBytes) (snapshotName key)
+            <|
+            fun before ->
+                let version, snapshot =
+                    match before with
+                    | None -> 0L, None
+                    | Some entity ->
+                        entity.Version+1L,
+                        entity
+                        |> projectIfMissing
+                        |> snapshot
                         |> Some
-                | None ->
-                    update input None
-                    |>
-                    function
-                    | None -> None
-                    | Some (snapshot, event) ->
-                        { Key=key
-                          Version=0L
-                          Snapshot=snapshot
-                          Last=event }
-                        |> Some
+                match update input snapshot with
+                | None -> None
+                | Some (snapshot, event) ->
+                  { Key=key
+                    Version=version
+                    Snapshot=snapshot
+                    Last=event }
+                  |> Some
             |>
             function
             | None -> None
@@ -86,3 +79,4 @@ module Entity =
                 entity
                 |> projectIfMissing
                 |> Some
+
