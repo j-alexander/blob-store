@@ -96,19 +96,14 @@ module Blob =
                              HttpStatusCode.PreconditionFailed ] code -> None
 
         let rec apply i =
+          let before, etag =
             match read(retry i) with
-            | None ->
-                match update None with
-                | None -> None
-                | Some data ->
-                    match write { Data=data; ETag=None } with
-                    | None -> apply(i+1)
-                    | Some result -> Some result
-            | Some { Data=data; ETag=etag } ->
-                match update (Some data) with
-                | None -> None
-                | Some data ->
-                    match write { Data=data; ETag=etag } with
-                    | None -> apply(i+1)
-                    | Some result -> Some result
+            | None -> None, None
+            | Some { Data=data; ETag=etag } -> Some data, etag
+          match update before with
+          | None -> None
+          | Some after ->
+            match write { Data=after; ETag=etag } with
+            | None -> apply(1+i)
+            | Some result -> Some result
         apply 0
