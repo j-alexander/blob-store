@@ -33,6 +33,7 @@ module Entity =
     let last { Last=x } = x
 
     type Update<'Input,'Snapshot,'Event> = 'Input -> 'Snapshot option -> ('Snapshot*'Event) option
+    type UpdateAsync<'Input,'Snapshot,'Event> = 'Input->Option<'Snapshot>->Async<Option<'Snapshot*'Event>>
 
     let update
         (retryDelay:int->int)
@@ -80,3 +81,52 @@ module Entity =
                 |> projectIfMissing
                 |> Some
 
+
+    let updateAsync
+        (retryInterval:int->int)
+        (snapshotName:'Key->Blob.Name)
+        (entityFromBytes:byte[]->Entity<'Key,'Snapshot,'Event>)
+        (entityToBytes:Entity<'Key,'Snapshot,'Event>->byte[])
+        (eventName:'Key->Version->Blob.Name)
+        (eventToBytes:'Event->byte[])
+        (eventProjectionAsync:'Key->Version->Uri->Async<unit>)
+        (container:CloudBlobContainer)
+        (updateAsync:UpdateAsync<'Input,'Snapshot,'Event>) =
+
+        let projectIfMissingAsync ({Key=key; Version=version; Last=last} as entity) = async {
+            let! created =
+                Blob.createIfMissingAsync container (eventName key version)
+                <| async { return eventToBytes last }
+            match created with
+            | None -> ()
+            | Some uri -> do! eventProjectionAsync key version uri }
+
+        fun (key:'Key) (input:'Input) -> async {
+            let updateAsync (before:Entity<'Key,'Snapshot,'Event> option) = async {
+                if before.IsSome then
+                    do! before.Value |> projectIfMissingAsync
+                let version, snapshot =
+                    match before with
+                    | None -> 0L, None
+                    | Some entity ->
+                        entity.Version+1L,
+                        entity
+                        |> snapshot
+                        |> Some
+                let! update = updateAsync input snapshot
+                return
+                    match update with
+                    | None -> None
+                    | Some (snapshot, event) ->
+                        { Key=key
+                          Version=version
+                          Snapshot=snapshot
+                          Last=event }
+                        |> Some }
+
+            let! update = Blob.updateAsync retryInterval container (entityFromBytes, entityToBytes) (snapshotName key) updateAsync
+            if update.IsSome then
+                do! update.Value |> Blob.data |> projectIfMissingAsync
+            return
+                update
+                |> Option.map Blob.data }

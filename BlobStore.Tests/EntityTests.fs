@@ -40,7 +40,7 @@ type EntityTests() =
     let client = 
         let account = CloudStorageAccount.Parse("UseDevelopmentStorage=true;")
         account.CreateCloudBlobClient()
-    let container =
+    let container() =
         let container = client.GetContainerReference(Environment.TickCount.ToString())
         container.CreateIfNotExists() |> ignore
         container
@@ -58,9 +58,9 @@ type EntityTests() =
             sprintf "%s/snapshot" key
         let snapshotFromBytes : byte[]->StringEntity = Converter.FromJsonBytes
         let snapshotToBytes : StringEntity->byte[] = Converter.ToJsonBytes
-        let eventName key : Store.Version->string = 
+        let eventName key : Store.Version->string =
             Store.VersionFormat.Hex.oldestFirst
-            >> sprintf "%s/event/%s" key 
+            >> sprintf "%s/event/%s" key
         let eventFromBytes : byte[]->string = Encoding.UTF8.GetString
         let eventToBytes : string->byte[] = Encoding.UTF8.GetBytes
         let eventProjections = new ConcurrentMap<string*int64,Uri>()
@@ -82,7 +82,7 @@ type EntityTests() =
                 eventName
                 eventToBytes
                 eventProjection
-                container
+                (container())
                 update
 
         let key = name()
@@ -97,7 +97,7 @@ type EntityTests() =
             ]
             |> Async.Parallel
             |> Async.RunSynchronously
-            
+
         let events =
             eventProjections.Get()
 
@@ -112,7 +112,7 @@ type EntityTests() =
                 match Map.tryFind (key,version) events with
                 | None -> ()
                 | Some x ->
-                    let event = 
+                    let event =
                         let blob = client.GetBlobReferenceFromServer(x)
                         use stream = new MemoryStream()
                         blob.DownloadToStream(stream)
@@ -125,3 +125,80 @@ type EntityTests() =
             |> Seq.choose id
             |> Seq.map Store.Entity.version
             |> Set.ofSeq)
+
+    [<Test>]
+    member x.TestUpdateAsync() =
+        async {
+            let retryInterval = Store.Retry.powerOf2Centiseconds
+            let snapshotName key =
+                sprintf "%s/snapshot" key
+            let snapshotFromBytes : byte[]->StringEntity = Converter.FromJsonBytes
+            let snapshotToBytes : StringEntity->byte[] = Converter.ToJsonBytes
+            let eventName key : Store.Version->string =
+                Store.VersionFormat.Hex.oldestFirst
+                >> sprintf "%s/event/%s" key
+            let eventFromBytes : byte[]->string = Encoding.UTF8.GetString
+            let eventToBytes : string->byte[] = Encoding.UTF8.GetBytes
+            let eventProjections = new ConcurrentMap<string*int64,Uri>()
+            let eventProjectionAsync key version uri = async {
+                eventProjections.Set((key,version),uri) }
+
+            let updateAsync =
+                fun input acc -> async {
+                    return
+                        match acc with
+                        | Some count -> Some(count+1L, input)
+                        | None -> Some(0L, input) }
+
+            let updateEntityAsync =
+                Store.Entity.updateAsync
+                    retryInterval
+                    snapshotName
+                    snapshotFromBytes
+                    snapshotToBytes
+                    eventName
+                    eventToBytes
+                    eventProjectionAsync
+                    (container())
+                    updateAsync
+
+            let key = name()
+            let values =
+                [ for _ in 1..100 -> name() ]
+
+            let results =
+                [ for value in values ->
+                    updateEntityAsync key value
+                ]
+                |> Async.Parallel
+                |> Async.RunSynchronously
+
+            let events =
+                eventProjections.Get()
+
+            for result in results do
+                match result with
+                | None ->
+                    Assert.Fail("All inputs should produce an update.")
+                | Some { Store.Entity.Key=key
+                         Store.Entity.Version=version
+                         Store.Entity.Snapshot=snapshot
+                         Store.Entity.Last=last } ->
+                    match Map.tryFind (key,version) events with
+                    | None -> ()
+                    | Some x ->
+                        let event =
+                            let blob = client.GetBlobReferenceFromServer(x)
+                            use stream = new MemoryStream()
+                            blob.DownloadToStream(stream)
+                            stream.ToArray()
+                            |> eventFromBytes
+                        Assert.AreEqual(last, event)
+            Assert.AreEqual(
+                Set [0..99],
+                results
+                |> Seq.choose id
+                |> Seq.map Store.Entity.version
+                |> Set.ofSeq)
+        }
+        |> Async.RunSynchronously

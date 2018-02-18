@@ -18,6 +18,7 @@ module Blob =
     type Name = string
 
     type Update<'T> = 'T option -> 'T option
+    type UpdateAsync<'T> = 'T option -> Async<'T option>
 
     let data { Blob.Data=x } = x
     let etag { Blob.ETag=x } = x
@@ -55,6 +56,7 @@ module Blob =
                 |> List.exists ((=) code) -> Some exn
             | _ -> None
 
+
     let createIfMissing (container:CloudBlobContainer) (name:Name) (bytes:Lazy<byte[]>) =
         let reference = container.GetBlockBlobReference(name)
         if reference.Exists() then None
@@ -65,6 +67,20 @@ module Blob =
             with
             | StatusCodeIn [ HttpStatusCode.Conflict
                              HttpStatusCode.PreconditionFailed ] code -> None
+
+
+    let createIfMissingAsync (container:CloudBlobContainer) (name:Name) (bytesAsync:Async<byte[]>) = async {
+        let reference = container.GetBlockBlobReference(name)
+        let! exists = reference.ExistsAsync() |> Async.AwaitTaskCorrect
+        if exists then return None
+        else
+            let! bytes = bytesAsync
+            try
+                do! reference.UploadFromByteArrayAsync(bytes, 0, bytes.Length, AccessCondition.GenerateIfNotExistsCondition(), BlobRequestOptions(), null) |> Async.AwaitTaskCorrect
+                return Some reference.Uri
+            with
+            | StatusCodeIn [ HttpStatusCode.Conflict
+                             HttpStatusCode.PreconditionFailed ] code -> return None }
 
 
     let update (retry:int->int) (container:CloudBlobContainer) (fromBytes, (|Bytes|)) (name:Name) (update:Update<'T>) =
@@ -109,3 +125,53 @@ module Blob =
             | None -> apply(1+i)
             | Some result -> Some result
         apply 0
+
+
+    let updateAsync (retryInterval) (container:CloudBlobContainer) (fromBytes, (|Bytes|)) (name:Name) (updateAsync:UpdateAsync<'T>) = async {
+        let reference = container.GetBlockBlobReference(name)
+        let readAsync() = async {
+            try
+                let! exists = reference.ExistsAsync() |> Async.AwaitTaskCorrect
+                if exists then
+                    use memory = new MemoryStream()
+                    do! reference.DownloadToStreamAsync(memory) |> Async.AwaitTaskCorrect
+
+                    let data = memory.ToArray()
+                    let etag = reference.Properties.ETag
+                    return Some { ETag = etag |> Some
+                                  Data = data |> fromBytes }
+                else
+                    return None
+            with
+            | StatusCodeIn [ HttpStatusCode.BadRequest
+                             HttpStatusCode.NotFound
+                             HttpStatusCode.PreconditionFailed ] code -> return None }
+
+        let writeAsync ({ Data=Bytes bytes; ETag=etag } as blob) = async {
+            let condition =
+                match etag with
+                | Some etag -> AccessCondition.GenerateIfMatchCondition(etag)
+                | None -> AccessCondition.GenerateIfNotExistsCondition()
+            try do! reference.UploadFromByteArrayAsync(bytes, 0, bytes.Length, condition, new BlobRequestOptions(), null) |> Async.AwaitTaskCorrect
+                return Some blob
+            with
+            | StatusCodeIn [ HttpStatusCode.Conflict
+                             HttpStatusCode.PreconditionFailed ] code -> return None }
+
+        let rec apply i = async {
+            let wait = retryInterval i
+            if wait > 0 then do! Async.Sleep wait
+            let! read = readAsync()
+            let before, etag =
+                match read with
+                | None -> None, None
+                | Some { Data=data; ETag=etag } -> Some data, etag
+            let! update = updateAsync before
+            match update with
+            | None -> return None
+            | Some after ->
+                let! write = writeAsync { Data=after; ETag=etag }
+                match write with
+                | None -> return! apply(1+i)
+                | Some result -> return Some result }
+        return! apply 0 }
