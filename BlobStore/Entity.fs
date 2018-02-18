@@ -37,8 +37,8 @@ module Entity =
     let update
         (retryDelay:int->int)
         (snapshotName:'Key->Blob.Name)
-        (snapshotFromBytes:byte[]->Entity<'Key,'Snapshot,'Event>)
-        (snapshotToBytes:Entity<'Key,'Snapshot,'Event>->byte[])
+        (entityFromBytes:byte[]->Entity<'Key,'Snapshot,'Event>)
+        (entityToBytes:Entity<'Key,'Snapshot,'Event>->byte[])
         (eventName:'Key->Version->Blob.Name)
         (eventToBytes:'Event->byte[])
         (eventProjection:'Key->Version->Uri->unit)
@@ -52,7 +52,7 @@ module Entity =
             entity
 
         fun (key:'Key) (input:'Input) ->
-            Blob.update retryDelay container (snapshotFromBytes, snapshotToBytes) (snapshotName key)
+            Blob.update retryDelay container (entityFromBytes, entityToBytes) (snapshotName key)
             <|
             fun before ->
                 let version, snapshot =
