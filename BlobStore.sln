@@ -1,11 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29920.165
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BlobStore", "BlobStore\BlobStore.fsproj", "{F3FBBEFC-C40D-4D41-8F2C-A8F18806C05C}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BlobStore.Tests", "BlobStore.Tests\BlobStore.Tests.fsproj", "{F96C9529-61F6-49A3-8045-1EE270B6EA6B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CB085CE3-5FAC-459B-9565-E52D3AC998A1}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+		paket.lock = paket.lock
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +30,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {506DBD6A-0A61-4765-AADF-EAAB42EB32E7}
 	EndGlobalSection
 EndGlobal
