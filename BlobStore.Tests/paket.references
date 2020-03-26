@@ -1,3 +1,4 @@
-WindowsAzure.Storage
 NUnit
 NUnit.Runners
+Microsoft.Azure.Storage.Blob
+FSharp.Core

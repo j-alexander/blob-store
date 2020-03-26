@@ -1,8 +1,8 @@
 ﻿namespace Store
 
 open System
-open Microsoft.WindowsAzure.Storage
-open Microsoft.WindowsAzure.Storage.Blob
+open Microsoft.Azure.Storage
+open Microsoft.Azure.Storage.Blob
 
 type Version = int64
 

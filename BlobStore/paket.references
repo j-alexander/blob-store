@@ -1,1 +1,2 @@
-WindowsAzure.Storage
+Microsoft.Azure.Storage.Blob
+FSharp.Core

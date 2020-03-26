@@ -4,8 +4,8 @@ open System
 open System.IO
 open System.Net
 open System.Threading
-open Microsoft.WindowsAzure.Storage
-open Microsoft.WindowsAzure.Storage.Blob
+open Microsoft.Azure.Storage
+open Microsoft.Azure.Storage.Blob
 
 
 type Blob<'T> =
