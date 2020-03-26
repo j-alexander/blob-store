@@ -30,7 +30,7 @@ type Converter =
     static member ToJson(x:'T) = JsonConvert.SerializeObject(x :> obj)
     static member ToJsonBytes(x) = Encoding.UTF8.GetBytes(Converter.ToJson(x))
     static member FromJson(x):'T = JsonConvert.DeserializeObject<'T>(x)
-    static member FromJsonBytes(x) = Converter.FromJson(Encoding.UTF8.GetString(x))
+    static member FromJsonBytes(x:byte[]) = Converter.FromJson(Encoding.UTF8.GetString(x))
 
 type StringEntity = Store.Entity<string,int64,string>
 
