@@ -1,5 +1,7 @@
 source https://www.nuget.org/api/v2
 nuget FSharp.Core
 nuget Microsoft.Azure.Storage.Blob
+nuget Microsoft.NET.Test.Sdk
 nuget NUnit
-nuget NUnit.Runners
+nuget NUnit.Console
+nuget NUnit3TestAdapter

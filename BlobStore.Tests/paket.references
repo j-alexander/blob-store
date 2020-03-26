@@ -1,4 +1,6 @@
 NUnit
-NUnit.Runners
 Microsoft.Azure.Storage.Blob
 FSharp.Core
+NUnit.Console
+NUnit3TestAdapter
+Microsoft.NET.Test.Sdk
