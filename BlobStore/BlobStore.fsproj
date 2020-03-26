@@ -10,7 +10,7 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/j-alexander/blob-store.git</RepositoryUrl>
     <Company>LambdaFun.com</Company>
-    <Description>Core Library for the Nata Project</Description>
+    <Description>PoC for Optimistic Concurrency of Entities using Azure Blob Storage</Description>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
